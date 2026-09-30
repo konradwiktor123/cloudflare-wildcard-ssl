@@ -1,0 +1,6 @@
+# Nigdy nie commituj tokenów ani kluczy
+*.ini
+*.pem
+*.key
+.env
+.DS_Store
