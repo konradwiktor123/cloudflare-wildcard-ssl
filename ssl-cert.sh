@@ -9,7 +9,8 @@
 #
 # Serwer WWW (nginx / apache / brak): skrypt wypisze gotowy fragment konfiguracji,
 # a jeśli ten serwer działa na tej maszynie (Linux, root) — przeładuje go po wydaniu
-# certyfikatu i przy każdym odnowieniu.
+# certyfikatu i przy każdym odnowieniu. Przy wyborze "brak" pliki certyfikatu są
+# kopiowane do folderu domowego użytkownika: ~/ssl/<domena>/
 #
 # Opcje:
 #   --force       odnów teraz, nawet jeśli certyfikat jest jeszcze długo ważny
@@ -64,7 +65,7 @@ if [ -z "$SERVER" ]; then
     echo "Serwer WWW, dla którego jest certyfikat:"
     echo "  1) nginx"
     echo "  2) apache"
-    echo "  3) żaden — tylko wygeneruj pliki"
+    echo "  3) żaden — zapisz pliki w folderze domowym (~/ssl/<domena>/)"
     read -rp "Wybór [1-3]: " choice || true
     case "$choice" in 1) SERVER=nginx ;; 2) SERVER=apache ;; 3) SERVER=none ;; *) SERVER="" ;; esac
 fi
@@ -154,11 +155,35 @@ if [ ! -f "$LIVE/fullchain.pem" ]; then
     echo "!! Nie udało się wygenerować certyfikatu — szczegóły: $LE_DIR/logs/letsencrypt.log"; exit 1
 fi
 
+# Bez serwera WWW: kopia plików do folderu domowego użytkownika (przy sudo — tego,
+# który uruchomił sudo, a nie roota). Kopiujemy prawdziwe pliki, nie dowiązania.
+if [ "$SERVER" = none ]; then
+    OWNER="${SUDO_USER:-$(id -un)}"
+    OWNER_HOME="$(eval echo "~$OWNER")"
+    OUT="$OWNER_HOME/ssl/$DOMAIN"
+    mkdir -p "$OUT"
+    for f in fullchain.pem privkey.pem cert.pem chain.pem; do
+        cp -L "$LIVE/$f" "$OUT/$f"
+    done
+    chmod 700 "$OWNER_HOME/ssl" "$OUT"
+    chmod 600 "$OUT"/*.pem
+    [ "$OWNER" != "$(id -un)" ] && chown -R "$OWNER": "$OWNER_HOME/ssl"
+    LIVE="$OUT"
+fi
+
 echo
 echo "==> Gotowe"
 openssl x509 -noout -subject -enddate -in "$LIVE/cert.pem" | sed 's/^/    /'
-echo "    Certyfikat z łańcuchem (nginx: ssl_certificate):   $LIVE/fullchain.pem"
-echo "    Klucz prywatny        (nginx: ssl_certificate_key): $LIVE/privkey.pem"
+if [ "$SERVER" = none ]; then
+    echo "    Pliki zapisane w: $LIVE/"
+    echo "      fullchain.pem  certyfikat z łańcuchem (to podajesz serwerowi WWW)"
+    echo "      privkey.pem    klucz prywatny — nikomu go nie udostępniaj"
+    echo "      cert.pem       sam certyfikat domeny"
+    echo "      chain.pem      certyfikaty pośrednie"
+else
+    echo "    Certyfikat z łańcuchem (ssl_certificate):     $LIVE/fullchain.pem"
+    echo "    Klucz prywatny        (ssl_certificate_key): $LIVE/privkey.pem"
+fi
 echo "    Odnowienie: uruchom skrypt ponownie przed datą wygaśnięcia (co ~60–90 dni)."
 
 case "$SERVER" in

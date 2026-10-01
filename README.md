@@ -11,6 +11,7 @@ Wildcard wymaga weryfikacji DNS (rekordu TXT), więc zwykłe `certbot --nginx` t
 - Przy pierwszym uruchomieniu sam instaluje `certbot` z wtyczką `certbot-dns-cloudflare` w osobnym środowisku Pythona, więc niczego nie instaluje w systemie.
 - Wydaje certyfikat albo odnawia istniejący. Odnowienie następuje dopiero około 30 dni przed wygaśnięciem, więc skrypt można uruchamiać bezpiecznie w dowolnym momencie.
 - Wypisuje gotowy fragment konfiguracji dla **nginx** albo **Apache**.
+- Przy wyborze **„żaden”** zapisuje pliki certyfikatu w folderze domowym: `~/ssl/<domena>/` (`fullchain.pem`, `privkey.pem`, `cert.pem`, `chain.pem`). Przy `sudo` trafiają do folderu użytkownika, który uruchomił `sudo`, a nie roota.
 - Jeśli wybrany serwer działa na tej maszynie (Linux, root), **przeładowuje go** po wydaniu i przy każdym odnowieniu, ale tylko wtedy, gdy test konfiguracji przejdzie.
 - **Nie zapisuje tokenu na stałe.** Token trafia do pliku tymczasowego, kasowanego po zakończeniu skryptu.
 
@@ -49,7 +50,7 @@ Domena (np. example.com): example.com
 Serwer WWW, dla którego jest certyfikat:
   1) nginx
   2) apache
-  3) żaden — tylko wygeneruj pliki
+  3) żaden — zapisz pliki w folderze domowym (~/ssl/<domena>/)
 Wybór [1-3]: 1
 Token API Cloudflare (Edit zone DNS, wpisywanie niewidoczne):
 ==> Sprawdzam token w Cloudflare
